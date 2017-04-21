@@ -1,0 +1,28 @@
+//
+// Created by Richard Hodges on 20/04/2017.
+//
+
+#pragma once
+#include <boost/asio.hpp>
+
+namespace quippy {
+
+    namespace asio {
+        using namespace boost::asio;
+        using boost::system::error_code;
+        using boost::system::system_error;
+    }
+
+    struct version_info
+    {
+        int major;
+        int minor;
+    };
+
+    static constexpr auto version = version_info { @PROJECT_VERSION_MAJOR@,
+                                                   @PROJECT_VERSION_MINOR@ };
+
+    const char * version_string();
+
+
+}

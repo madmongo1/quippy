@@ -1,0 +1,8 @@
+
+namespace quippy
+{
+    const char* version_string()
+    {
+        return "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@";
+    }
+}
