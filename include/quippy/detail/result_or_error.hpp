@@ -123,6 +123,19 @@ namespace quippy { namespace detail {
             void(impl_.get());
         }
 
+        void wait() {
+            impl_.wait();
+        }
+
+        void set_value_or_error(asio::error_code const& ec) {
+            if (ec) {
+                set_error(ec);
+            }
+            else {
+                set_value();
+            }
+        }
+
 
         result_or_error<indicate_void> impl_;
     };

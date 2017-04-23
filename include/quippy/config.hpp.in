@@ -11,6 +11,7 @@ namespace quippy {
         using namespace boost::asio;
         using boost::system::error_code;
         using boost::system::system_error;
+        using boost::system::error_category;
     }
 
     struct version_info

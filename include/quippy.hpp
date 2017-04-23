@@ -3,3 +3,7 @@
 //
 
 #pragma once
+
+#include <quippy/config.hpp>
+#include <quippy/connector.hpp>
+#include <quippy/error.hpp>

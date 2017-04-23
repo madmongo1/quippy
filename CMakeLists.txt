@@ -28,11 +28,16 @@ configure_file(include/quippy/config.hpp.in include/quippy/config.hpp)
 configure_file(src/version.cpp.in src/version.cpp)
 
 set(PRIVATE_INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/include/quippy/config.hpp)
+prefix_files(include PREFIX "include" APPEND PUBLIC_INTERFACE FILES quippy.hpp)
+prefix_files(include.quippy PREFIX "include/quippy" APPEND PRIVATE_INTERFACE
+        FILES connector.hpp connector_service.hpp error.hpp connector_impl.hpp)
 prefix_files(include.quippy.detail PREFIX "include/quippy/detail" APPEND PRIVATE_INTERFACE FILES connection_handle.hpp)
-prefix_files(src PREFIX "src" APPEND SOURCE_FILES FILES version.cpp connector.cpp)
+prefix_files(include.quippy.error PREFIX "include/quippy/error" APPEND PRIVATE_INTERFACE FILES transport_category.hpp)
+prefix_files(src PREFIX "src" APPEND SOURCE_FILES FILES version.cpp connector.cpp connector_impl.cpp)
+prefix_files(src.connector_impl PREFIX "src/connector_impl" APPEND SOURCE_FILES FILES transport_up.cpp)
 prefix_files(src.detail PREFIX "src/detail" APPEND SOURCE_FILES FILES connection.cpp connection_handler.cpp)
 
-add_library(quippy ${SOURCE_FILES} ${PRIVATE_INTERFACE_FILES} ${PUBLIC_INTERFACE_FILES})
+add_library(quippy ${SOURCE_FILES} ${PRIVATE_INTERFACE} ${PUBLIC_INTERFACE})
 target_include_directories(quippy SYSTEM PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)

@@ -12,60 +12,78 @@
 #include <quippy/detail/connection_handler.hpp>
 #include <quippy/detail/connection.hpp>
 #include <quippy/detail/result_or_error.hpp>
+#include <quippy/connector_impl.hpp>
 
 namespace quippy {
 
-    struct connector_service : asio::detail::service_base<connector_service>
-    {
-        using implementation_class = detail::asio_connection;
+    struct connector_service : asio::detail::service_base<connector_service> {
+        using implementation_class = connector_impl;
+        using implementation_type = std::shared_ptr<connector_impl>;
 
-        struct deleter
-        {
-            void operator()(implementation_class* impl) const {
-                impl->notify_stop();
-                delete impl;
-            }
-        };
-
-        using implementation_type = std::unique_ptr<implementation_class, deleter>;
-
-        connector_service(asio::io_service& owner)
+        connector_service(asio::io_service &owner)
             : asio::detail::service_base<connector_service>(owner)
+        , worker_executor_()
+        , worker_executor_work_(worker_executor_)
+        , connection_handler_(worker_executor_)
+        , worker_thread_()
         {
-            worker_thread_ = std::thread([this](){
-                while(not this->worker_executor_.stopped()) {
+            worker_thread_ = std::thread([this]() {
+                while (not this->worker_executor_.stopped()) {
                     this->worker_executor_.run_one();
                 }
             });
         }
 
-        implementation_type create()
-        {
-            auto impl = implementation_type { new detail::asio_connection(connection_handler_),
-            deleter()
-            };
+        implementation_type create() {
+            auto impl = std::make_shared<implementation_class>(boost::ref(connection_handler_));
+            impl->start();
             return impl;
         }
 
-        void connect(implementation_type& impl, asio::ip::tcp::resolver::iterator iter)
-        {
+        void destroy(implementation_type &impl) {
             detail::result_or_error<void> result;
-            impl->async_connect_link(iter, [&](const asio::error_code& ec) {
-                if (ec) {
-                    result.set_error(ec);
-                }
-                else {
-                    result.set_value();
-                }
-            });
+            auto handler = [&](auto const &ec) {
+                result.set_value_or_error(ec);
+            };
+
+            impl->notify_event(event_halt {handler});
+
+            result.wait();
+            impl.reset();
+        }
+
+        void connect_link(implementation_class &impl, asio::ip::tcp::resolver::iterator iter) {
+            detail::result_or_error<void> result;
+
+            impl.notify_event(implementation_class::event_connect_tcp{
+                iter,
+                [&](const asio::error_code &ec) {
+                    result.set_value_or_error(ec);
+                }});
+
             return result.get();
         }
 
-        void add_connection()
-        {
+        void connect(implementation_class &impl, AMQP::Login const& login, std::string const& vhost) {
+            detail::result_or_error<void> result;
+
+            impl.notify_event(implementation_class::event_connect_protocol {
+                login,
+                vhost,
+                [&](auto &&ec) { result.set_value_or_error(ec); }
+            });
+
+            return result.get();
+        }
+
+        void add_connection() {
             auto conn_ptr = std::make_unique<detail::asio_connection>(connection_handler_);
         }
 
+
+        auto get_worker_executor() -> asio::io_service & {
+            return worker_executor_;
+        }
 
     private:
 
@@ -76,8 +94,8 @@ namespace quippy {
         }
 
         asio::io_service worker_executor_;
-        asio::io_service::work worker_executor_work_ { worker_executor_ };
-        detail::asio_connection_handler connection_handler_ { worker_executor_ };
+        asio::io_service::work worker_executor_work_;
+        detail::asio_connection_handler connection_handler_;
         std::thread worker_thread_;
     };
 
