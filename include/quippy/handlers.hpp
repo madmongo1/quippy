@@ -29,4 +29,15 @@ namespace quippy
         std::vector<completion_handler_function> completion_handlers_;
     };
 
+    struct expects_completion
+    {
+        template<class Handler>
+        expects_completion(Handler&& handler)
+        : completion_handler(std::forward<Handler>(handler))
+        {}
+
+        completion_handler_function completion_handler;
+    };
+
+
 }

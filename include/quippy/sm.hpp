@@ -5,14 +5,11 @@
 #pragma once
 
 #include <quippy/config.hpp>
+#include <quippy/sm/config.hpp>
+
 #include <tuple>
 #include <utility>
 
-#include <boost/msm/back/state_machine.hpp>
-#include <boost/msm/front/state_machine_def.hpp>
-#include <boost/msm/front/functor_row.hpp>
-
-#include <boost/signals2.hpp>
 
 
 namespace quippy {
@@ -141,12 +138,6 @@ namespace quippy {
     }
 
 
-    namespace msm = boost::msm;
-    namespace msmf = boost::msm::front;
-    namespace mpl = boost::mpl;
-
-    namespace sig = boost::signals2;
-    using subscription = sig::scoped_connection;
 
 
     // default back end for this project
@@ -187,3 +178,5 @@ namespace quippy {
     template<class State> using base_state = logging_state<State>;
 
 }
+
+#include <quippy/sm/invoke_state_names.hpp>

@@ -66,7 +66,7 @@ namespace quippy {
         service_type &get_service() const { return *service_ptr_; }
 
         implementation_type &get_implementation() { return impl_; }
-        implementation_class &get_impl() { return *impl_; }
+        implementation_class &get_impl() { return impl_; }
 
         implementation_type const &get_implementation() const { return impl_; }
 

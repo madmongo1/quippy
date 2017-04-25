@@ -6,6 +6,19 @@
         <Objective-C>
           <option name="KEEP_STRUCTURES_IN_ONE_LINE" value="true" />
           <option name="KEEP_NESTED_NAMESPACES_IN_ONE_LINE" value="true" />
+          <option name="FUNCTION_BRACE_PLACEMENT" value="5" />
+          <option name="BLOCK_BRACE_PLACEMENT" value="5" />
+          <option name="LAMBDA_CAPTURE_LIST_ALIGN_MULTILINE" value="true" />
+          <option name="LAMBDA_CAPTURE_LIST_ALIGN_MULTILINE_BRACKET" value="true" />
+          <option name="TEMPLATE_DECLARATION_STRUCT_WRAP" value="5" />
+          <option name="TEMPLATE_PARAMETERS_ALIGN_MULTILINE_PARS" value="true" />
+          <option name="CLASS_CONSTRUCTOR_INIT_LIST_WRAP" value="2" />
+          <option name="CLASS_CONSTRUCTOR_INIT_LIST_ALIGN_MULTILINE" value="false" />
+          <option name="CLASS_CONSTRUCTOR_INIT_LIST_COMMA_ON_NEXT_LINE" value="true" />
+          <option name="SUPERCLASS_LIST_ALIGN_MULTILINE" value="false" />
+          <option name="SUPERCLASS_LIST_COMMA_ON_NEXT_LINE" value="true" />
+          <option name="SPACE_WITHIN_TEMPLATE_DECLARATION_LTGT" value="true" />
+          <option name="DISCHARGED_SHORT_TERNARY_OPERATOR" value="true" />
         </Objective-C>
         <Objective-C-extensions>
           <file>
@@ -33,8 +46,10 @@
           </extensions>
         </Objective-C-extensions>
         <codeStyleSettings language="ObjectiveC">
+          <option name="CLASS_BRACE_STYLE" value="5" />
+          <option name="METHOD_CALL_CHAIN_WRAP" value="5" />
           <indentOptions>
-            <option name="CONTINUATION_INDENT_SIZE" value="4" />
+            <option name="CONTINUATION_INDENT_SIZE" value="0" />
           </indentOptions>
         </codeStyleSettings>
       </value>

@@ -14,6 +14,12 @@
 #include <amqpcpp.h>
 #include <boost/optional.hpp>
 
+#include <quippy/connector_impl/concept_fwd.hpp>
+#include <quippy/detail/has_environment.hpp>
+
+#include <quippy/event/halt.hpp>
+#include <quippy/event/connect_protocol.hpp>
+
 namespace quippy {
 
     struct event_send_data {
@@ -25,16 +31,6 @@ namespace quippy {
         std::size_t size;
     };
 
-    struct event_connect_protocol : expects_completion, connector_impl_traits {
-        event_connect_protocol(AMQP::Login const &login,
-                               std::string const &vhost,
-                               completion_handler_function &&f)
-            : expects_completion(std::move(f)), login(std::move(login)),
-              vhost(std::move(vhost)) {}
-
-        AMQP::Login login;
-        std::string vhost;
-    };
 
     struct event_protocol_connected {};
     struct event_protocol_closed {};
@@ -122,16 +118,13 @@ namespace quippy {
 
 
     struct connector_impl_transport_up_
-        : msmf::state_machine_def<connector_impl_transport_up_,
+        : detail::has_environment<connector_impl_concept>,
+          msmf::state_machine_def<connector_impl_transport_up_,
             base_state<connector_impl_transport_up_>>,
           connector_impl_traits {
 
         using base_state::on_entry;
         using base_state::on_exit;
-
-        void set_parent(connector_impl_ &parent) {
-            parent_ = std::addressof(parent);
-        }
 
         using event_connect_protocol = event_connect_protocol;
 
@@ -271,7 +264,7 @@ namespace quippy {
         struct PostError {
             template<class Event, class Fsm, class Source, class Target>
             bool operator()(Event const &event, Fsm &fsm, Source &, Target &) {
-                return fsm.process_event(event.error);
+                return fsm.get_environment().get_state_machine().process_event(event.error);
             }
         };
 
@@ -335,11 +328,6 @@ namespace quippy {
 //            assert(!"improper transition in http state machine");
         }
 
-
-        connector_impl_ *get_parent() const {
-            assert(parent_);
-            return parent_;
-        }
 
         auto get_connection_ptr() {
             return connection_.get_ptr();

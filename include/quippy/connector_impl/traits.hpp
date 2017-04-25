@@ -4,29 +4,18 @@
 
 #pragma once
 #include <quippy/config.hpp>
+#include <quippy/sm.hpp>
 #include <quippy/handlers.hpp>
 
 namespace quippy
 {
     struct connector_impl_traits {
         using tcp = asio::ip::tcp;
+        using halted_signal_type = sig::signal<void()>;
+        using halted_slot_type = halted_signal_type::slot_type;
     };
 
-    struct event_halt : connector_impl_traits {
-        operator asio::error_code() const {
-            return make_error_code(asio::error::operation_aborted);
-        }
-    };
 
-    struct expects_completion
-    {
-        template<class Handler>
-        expects_completion(Handler&& handler)
-            : completion_handler(std::forward<Handler>(handler))
-        {}
-
-        completion_handler_function completion_handler;
-    };
 
 
 }

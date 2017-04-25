@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <quippy/sm.hpp>
+#include <quippy/sm/config.hpp>
 #include <iostream>
 #include <typeinfo>
 #include <cstdlib>

@@ -4,6 +4,8 @@
 
 #include <quippy/connector_impl/transport_up.hpp>
 #include <quippy/connector_impl.hpp>
+#include <quippy/error/transport_category.hpp>
+#include <quippy/connector_impl/concept.hpp>
 
 namespace quippy
 {
@@ -17,25 +19,30 @@ namespace quippy
                 model(fsm_type &fsm) : fsm_(fsm) {}
 
                 void onData(const char *buffer, size_t size) override {
-                    fsm_.process_event(event_send_data(buffer, size));
+                    auto& env = fsm_.get_environment();
+                    env.get_state_machine().process_event(event_send_data(buffer, size));
                 }
 
                 virtual void onConnected() override {
-                    fsm_.process_event(event_protocol_connected());
+                    auto& env = fsm_.get_environment();
+                    env.get_state_machine().process_event(event_protocol_connected());
                 }
 
                 virtual void onClosed() override {
-                    fsm_.process_event(event_protocol_closed());
+                    auto& env = fsm_.get_environment();
+                    env.get_state_machine().process_event(event_protocol_closed());
                 }
 
                 virtual void onError(const char *message) override {
                     auto &&category = error::transport_category();
                     auto code = category.get_code(message);
-                    fsm_.process_event(event_protocol_error(asio::error_code(code,
+                    auto& env = fsm_.get_environment();
+                    env.get_state_machine().process_event(event_protocol_error(asio::error_code(code,
                                                                              category)));
                 }
 
                 fsm_type &fsm_;
+
             };
 
             return detail::connection_handler_target(std::make_unique<model>(fsm));
@@ -45,11 +52,11 @@ namespace quippy
 
         auto make_send_completion_handler(connector_impl_transport_up& fsm)
         {
-            auto lifetime = fsm.get_parent()->get_shared();
+            auto lifetime = get_shared(environment_of(fsm));
             return [lifetime, &fsm](auto&& ec, auto size) {
                 fsm.get_send_state().consume(size);
                 if (ec) {
-                    fsm.process_event(event_send_error(ec));
+                    fsm.get_environment().get_state_machine().process_event(event_send_error(ec));
                 }
                 else {
                     maybe_send(fsm);
@@ -70,7 +77,7 @@ namespace quippy
 
         auto make_receive_completion_handler(connector_impl_transport_up& fsm)
         {
-            auto lifetime = fsm.get_parent()->get_shared();
+            auto lifetime = get_shared(environment_of(fsm));
             return [lifetime, &fsm](auto&& ec, auto size)
             {
                 auto& rx_state = fsm.get_receive_state();
@@ -88,7 +95,7 @@ namespace quippy
                 }
 
                 if (ec) {
-                    return void(fsm.process_event(event_receive_error(ec)));
+                    fsm.get_environment().get_state_machine().process_event(event_receive_error(ec));
                 }
             };
 
@@ -124,7 +131,7 @@ namespace quippy
                                              detail::connection_handler_target&& target)
     {
         assert(not bingoed());
-        auto&& handler = get_parent()->get_connection_handler();
+        auto&& handler = get_connection_handler(get_environment());
         connection_.emplace(std::addressof(handler), login, vhost);
         handler.bingo(connection_.get_ptr(), std::move(target));
     }
@@ -132,7 +139,7 @@ namespace quippy
 
     void connector_impl_transport_up_::cancel_io()
     {
-        auto& socket = get_parent()->socket();
+        auto& socket = get_socket(get_environment());
         asio::error_code sink;
         socket.cancel(sink);
     }
@@ -140,8 +147,7 @@ namespace quippy
     void connector_impl_transport_up_::unbingo(asio::error_code const& error)
     {
         QUIPPY_LOG(debug) << "TransportUp::" << __func__ << " : " << error.message();
-        auto parent = get_parent();
-        auto& handler = parent->get_connection_handler();
+        auto& handler = get_connection_handler(get_environment());
         assert(bool(connection_));
         cancel_io();
         auto& connection = connection_.get();
@@ -152,8 +158,7 @@ namespace quippy
 
     void connector_impl_transport_up_::unbingo()
     {
-        auto parent = get_parent();
-        auto& handler = parent->get_connection_handler();
+        auto& handler = get_connection_handler(get_environment());
         assert(bool(connection_));
         auto& connection = connection_.get();
         connection.close();
@@ -162,7 +167,7 @@ namespace quippy
     }
 
     auto connector_impl_transport_up_::socket() -> tcp::socket & {
-        return get_parent()->socket();
+        return get_socket(get_environment());
     }
 
 

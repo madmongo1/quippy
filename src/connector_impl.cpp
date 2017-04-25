@@ -1,7 +1,35 @@
 #include <quippy/connector_impl.hpp>
 #include <boost/msm/back/tools.hpp>
+#include <quippy/connector_impl/traits.hpp>
+#include <quippy/connector_impl/concept.hpp>
+#include <quippy/connector_impl/connector_impl_.hpp>
 
 namespace quippy {
+
+
+    connector_impl::connector_impl(detail::asio_connection_handler& handler)
+    : concept_(std::make_shared<concept>(handler))
+    {
+
+    }
+    void connector_impl::start()
+    {
+        concept_->get_state_machine().start();
+    }
+
+    void connector_impl::reset()
+    {
+        concept_->get_state_machine().stop();
+        concept_.reset();
+    }
+
+
+    void connector_impl::notify_halt()
+    {
+        notify_event(*concept_, event_halt());
+    }
+
+
 
     template<> std::string invoke_state_names::operator()(connector_impl_back_end& backend) const {
         return state_names(backend);
@@ -29,10 +57,6 @@ namespace quippy {
     }
 
 
-    auto connector_impl_::container() -> container_type&
-    {
-        return static_cast<container_type&>(*this);
-    }
 
     /*
     void connector_impl::handle_event(event_connect_tcp event, transport_down& state)
@@ -70,9 +94,10 @@ namespace quippy {
     }
 */
 
-    auto subscribe_halted(connector_impl &impl, connector_impl::halted_slot_type&& slot) -> subscription
+    auto connector_impl::subscribe_halted(halted_slot_type&& slot) -> subscription
     {
-        auto &state = impl.get_state<HaltedState&>();
+        auto& sm = concept_->get_state_machine();
+        auto &state = sm.get_state<concept::HaltedState&>();
         return state.subscribe(std::move(slot));
 
     }

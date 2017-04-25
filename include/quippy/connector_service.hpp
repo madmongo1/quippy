@@ -8,6 +8,7 @@
 #include <quippy/connector_impl.hpp>
 #include <functional>
 #include <unordered_map>
+#include <thread>
 
 #include <quippy/detail/connection_handler.hpp>
 #include <quippy/detail/connection.hpp>
@@ -15,11 +16,14 @@
 #include <quippy/connector_impl.hpp>
 #include <quippy/notstd/apply.hpp>
 
+#include <quippy/event/connect_tcp.hpp>
+#include <quippy/event/connect_protocol.hpp>
+
 namespace quippy {
 
     struct connector_service : asio::detail::service_base<connector_service> {
         using implementation_class = connector_impl;
-        using implementation_type = std::shared_ptr<connector_impl>;
+        using implementation_type = implementation_class;
         using tcp = implementation_class::tcp;
 
         connector_service(asio::io_service &owner)
@@ -33,21 +37,21 @@ namespace quippy {
         }
 
         implementation_type create() {
-            auto impl = std::make_shared<implementation_class>(boost::ref(connection_handler_));
-            impl->start();
+            auto impl = implementation_class(connection_handler_);
+            impl.start();
             return impl;
         }
 
-        void destroy(implementation_type &impl) {
-            halt(*impl);
+        void destroy(implementation_class &impl) {
+            halt(impl);
             impl.reset();
         }
 
         void halt(implementation_class& impl)
         {
             detail::result_or_error<void> result;
-            auto subs = subscribe_halted(impl, [&]() { result.set_value(); });
-            impl.notify_event(implementation_class::event_halt());
+            auto subs = impl.subscribe_halted([&]() { result.set_value(); });
+            impl.notify_halt();
             result.wait();
         }
 
@@ -56,27 +60,22 @@ namespace quippy {
         {
             detail::signalled<asio::error_code> sig_ec;
 
-            impl.notify_event(implementation_class::event_connect_tcp{
-                iter,
-                [&](const asio::error_code &ec) {
-                    sig_ec.set_value(ec);
-                }});
-
+            impl.post(event_connect_tcp(iter, [&](const asio::error_code &ec) {
+                sig_ec.set_value(ec);
+            }));
             sig_ec.visit([&ec](auto& value){ ec = std::forward<decltype(value)>(value); });
         }
 
         template<class Handler>
-        auto make_async_handler(implementation_class &impl, Handler &&handler) {
+        auto make_async_handler(implementation_class impl_copy, Handler &&handler) {
             auto &executor = get_io_service();
 
             auto client_work = asio::io_service::work(executor);
 
-            auto shared_impl = impl.shared_from_this();
-
             auto caller = [
                 handler = std::forward<Handler>(handler),
                 client_work,
-                shared_impl
+                impl_copy = std::move(impl_copy)
             ]
                 (auto &&...args) {
                 handler(args...);
@@ -89,7 +88,7 @@ namespace quippy {
         void async_connect_link(implementation_class &impl, tcp::resolver::iterator iter, Handler &&handler) {
 
 
-            impl.notify_event(implementation_class::event_connect_tcp{
+            impl.post(event_connect_tcp{
                 iter,
                 make_async_handler(impl,
                                    std::forward<Handler>(handler))
@@ -99,7 +98,7 @@ namespace quippy {
         void connect(implementation_class &impl, AMQP::Login const &login, std::string const &vhost, asio::error_code& ec) {
             detail::signalled<asio::error_code> sig_ec;
 
-            impl.notify_event(implementation_class::event_connect_protocol {
+            impl.post(event_connect_protocol {
                 login,
                 vhost,
                 [&](auto &&ec) { sig_ec.set_value(ec); }

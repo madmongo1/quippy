@@ -33,8 +33,8 @@ prefix_files(include.quippy PREFIX "include/quippy" APPEND PRIVATE_INTERFACE
         FILES connector.hpp connector_service.hpp error.hpp connector_impl.hpp)
 prefix_files(include.quippy.detail PREFIX "include/quippy/detail" APPEND PRIVATE_INTERFACE FILES connection_handle.hpp)
 prefix_files(include.quippy.error PREFIX "include/quippy/error" APPEND PRIVATE_INTERFACE FILES transport_category.hpp)
-prefix_files(src PREFIX "src" APPEND SOURCE_FILES FILES version.cpp connector.cpp connector_impl.cpp)
-prefix_files(src.connector_impl PREFIX "src/connector_impl" APPEND SOURCE_FILES FILES transport_up.cpp)
+prefix_files(src PREFIX "src" APPEND SOURCE_FILES FILES version.cpp connector.cpp connector_impl.cpp connector_service.cpp)
+prefix_files(src.connector_impl PREFIX "src/connector_impl" APPEND SOURCE_FILES FILES transport_up.cpp concept.cpp)
 prefix_files(src.detail PREFIX "src/detail" APPEND SOURCE_FILES FILES connection.cpp connection_handler.cpp)
 
 add_library(quippy ${SOURCE_FILES} ${PRIVATE_INTERFACE} ${PUBLIC_INTERFACE})
