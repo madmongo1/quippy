@@ -72,6 +72,7 @@ struct error_tests : ::testing::Test
     proto::resolver resolv { ios };
 
     AMQP::Login good_login { "test", "test" };
+    AMQP::Login bad_login { "test", "wrong_password" };
     std::string good_vhost { "/" };
 
 };
@@ -186,4 +187,18 @@ TEST(cock_test, first)
     auto conn = quippy::connector(ios);
     conn.connect_link(first_addr);
     conn.connect(AMQP::Login("test", "test"), "/");
+}
+
+TEST_F(error_tests, incorrect_credentials)
+{
+    auto first_addr = resolv.resolve(proto::resolver::query(proto::v4(), "localhost", "5672"));
+    auto conn = quippy::connector(ios);
+    EXPECT_NO_THROW(conn.connect_link(first_addr));
+    asio::error_code ec;
+    conn.connect(bad_login, good_vhost, ec);
+    EXPECT_TRUE(ec) << dump(ec);
+    EXPECT_EQ(quippy::error::transport_category(), ec.category());
+
+
+
 }

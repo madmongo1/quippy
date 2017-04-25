@@ -164,6 +164,12 @@ namespace quippy {
             }
 
             template<class FSM>
+            void on_exit(event_protocol_error const &event, FSM &fsm) {
+                base_state::on_exit(event, fsm);
+                this->fire_completion_handlers(event.error);
+            }
+
+            template<class FSM>
             void on_exit(event_halt const &event, FSM &fsm) {
                 base_state::on_exit(event, fsm);
                 this->fire_completion_handlers(asio::error::operation_aborted);
@@ -311,9 +317,12 @@ namespace quippy {
               msmf::Row<Connecting, event_halt, WaitingDeath, msmf::none, msmf::none>,
               msmf::Row<Connecting, event_send_error, WaitingExitTransportDown, msmf::none, msmf::none>,
               msmf::Row<Connecting, event_receive_error, WaitingExitTransportDown, msmf::none, msmf::none>,
-              msmf::Row<Connecting, event_protocol_connected, Connected, msmf::none, msmf::none>,
+            msmf::Row<Connecting, event_protocol_connected, Connected, msmf::none, msmf::none>,
+            msmf::Row<Connecting, event_protocol_error, NotConnected, msmf::none, msmf::none>,
 
               msmf::Row<Connected, event_halt, WaitingDeath, msmf::none, msmf::none>,
+
+
 
               msmf::Row<WaitingDeath, event_receive_error, AbortExit, msmf::none, IsNoIoOutstanding>,
               msmf::Row<WaitingDeath, event_send_error, AbortExit, msmf::none, IsNoIoOutstanding>,
