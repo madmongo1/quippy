@@ -16,6 +16,7 @@
 
 #include <quippy/connector_impl/concept_fwd.hpp>
 #include <quippy/detail/has_environment.hpp>
+#include <quippy/detail/send_buffer.hpp>
 
 #include <quippy/event/halt.hpp>
 #include <quippy/event/connect_protocol.hpp>
@@ -362,48 +363,6 @@ namespace quippy {
             return connection_.get();
         }
 
-        struct send_state {
-
-            void put_data(const char *data, std::size_t length) {
-                send_buffer_.insert(std::end(send_buffer_),
-                                    data,
-                                    data + length);
-            }
-
-            bool sending() const { return sending_; }
-
-            bool has_pending_data() const { return not send_buffer_.empty(); }
-
-            auto prepare() -> asio::const_buffers_1 {
-                assert(!sending_);
-                assert(sending_buffer_.empty());
-                std::swap(send_buffer_, sending_buffer_);
-                sending_ = true;
-                return buffer();
-            }
-
-            auto buffer() const -> asio::const_buffers_1 {
-                return asio::buffer(sending_buffer_);
-            }
-
-            void consume(std::size_t sent) {
-                assert(sending_);
-                sending_ = false;
-                assert(sent <= sending_buffer_.size());
-                auto diff = sending_buffer_.size() - sent;
-                if (diff) {
-                    auto first = std::begin(sending_buffer_) + sent;
-                    auto last = std::end(sending_buffer_);
-                    send_buffer_.insert(std::begin(send_buffer_),
-                                        first, last);
-                }
-                sending_buffer_.clear();
-            }
-
-            std::vector<char> send_buffer_;
-            std::vector<char> sending_buffer_;
-            bool sending_;
-        };
 
         struct receive_state {
 
@@ -449,7 +408,7 @@ namespace quippy {
             bool receiving_ = false;
         };
 
-        auto get_send_state() -> send_state & {
+        auto get_send_state() -> detail::send_buffer & {
             return send_state_;
         }
 
@@ -462,7 +421,7 @@ namespace quippy {
     private:
         connector_impl_ *parent_ = nullptr;
         boost::optional<AMQP::Connection> connection_;
-        send_state send_state_;
+        detail::send_buffer send_state_;
         receive_state receive_state_;
     };
 

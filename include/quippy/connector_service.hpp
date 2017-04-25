@@ -21,6 +21,9 @@
 
 namespace quippy {
 
+    struct channel;
+    struct channel_impl;
+
     struct connector_service : asio::detail::service_base<connector_service> {
         using implementation_class = connector_impl;
         using implementation_type = implementation_class;

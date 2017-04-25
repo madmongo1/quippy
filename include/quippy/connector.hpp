@@ -2,28 +2,24 @@
 // Created by Richard Hodges on 20/04/2017.
 //
 
+#pragma once
 #include <quippy/config.hpp>
 #include <quippy/connector_service.hpp>
-
+#include <quippy/detail/io_object.hpp>
 
 namespace quippy {
 
-    struct connector {
-        using service_type = connector_service;
-        using implementation_type = service_type::implementation_type;
+
+    struct connector : detail::io_object<connector_service>
+    {
+        using base_class = detail::io_object<connector_service>;
+
         using implementation_class = service_type::implementation_class;
 
         using tcp = implementation_class::tcp;
 
-        connector(asio::io_service &ios)
-            : service_ptr_(std::addressof(asio::use_service<service_type>(ios))), impl_(get_service().create()) {}
+        using base_class :: base_class;
 
-        connector(connector&&) = default;
-        connector& operator=(connector&&) = default;
-        ~connector()
-        {
-            get_service().destroy(get_implementation());
-        }
 
         void halt()
         {
@@ -63,15 +59,6 @@ namespace quippy {
             }
         }
 
-        service_type &get_service() const { return *service_ptr_; }
-
-        implementation_type &get_implementation() { return impl_; }
-        implementation_class &get_impl() { return impl_; }
-
-        implementation_type const &get_implementation() const { return impl_; }
-
-    private:
-        service_type *service_ptr_;
-        implementation_type impl_;
+        implementation_class &get_impl() { return get_implemenentation(); }
     };
 }
