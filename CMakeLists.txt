@@ -16,11 +16,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 hunter_add_package(OpenSSL)
-hunter_add_package(Boost COMPONENTS system thread)
+hunter_add_package(Boost COMPONENTS log system thread)
 hunter_add_package(gtest)
 find_package(GTEST REQUIRED)
 find_package(OpenSSL REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system thread)
+find_package(Boost REQUIRED COMPONENTS log system thread)
 
 add_subdirectory(AMQP-CPP)
 
@@ -45,7 +45,7 @@ target_include_directories(quippy PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
 
-target_link_libraries(quippy PUBLIC amqp-cpp Boost::system Boost::thread)
+target_link_libraries(quippy PUBLIC amqp-cpp Boost::log Boost::system Boost::thread)
 
 prefix_files(test PREFIX "test" APPEND TEST_SOURCES FILES test1.cpp)
 

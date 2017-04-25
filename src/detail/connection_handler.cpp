@@ -3,8 +3,6 @@
 //
 
 #include <quippy/detail/connection_handler.hpp>
-#include <quippy/connector_impl.hpp>
-#include <iostream>
 
 namespace quippy { namespace detail {
 
@@ -15,70 +13,53 @@ namespace quippy { namespace detail {
 
     auto asio_connection_handler::onData(AMQP::Connection *oconn, const char *buffer, size_t size) -> void {
         std::cerr << __func__ << " size: " << size << std::endl;
-        auto& ci = connections_[oconn];
+        auto &ci = connections_[oconn];
 
-        if (ci.connection == nullptr)
-        {
+        if (ci.connection.empty()) {
             std::cerr << __func__ << " deferring " << size << std::endl;
             ci.deferred_data.insert(std::end(ci.deferred_data), buffer, buffer + size);
-        }
-        else {
+        } else {
             flush_data(ci, buffer, size);
         }
     }
 
-    void asio_connection_handler::flush_data(connection_info& ci, const char* buffer, std::size_t size)
-    {
-        assert(ci.connection);
-        if (not ci.deferred_data.empty())
-        {
-            ci.connection->notify_event(event_send_data(ci.deferred_data.data(), ci.deferred_data.size()));
+    void asio_connection_handler::flush_data(connection_info &ci, const char *buffer, std::size_t size) {
+        assert(not ci.connection.empty());
+        if (not ci.deferred_data.empty()) {
+            ci.connection.onData(ci.deferred_data.data(), ci.deferred_data.size());
             ci.deferred_data.clear();
         }
         if (buffer) {
-            ci.connection->notify_event(event_send_data(buffer, size));
+            ci.connection.onData(buffer, size);
         }
     }
 
-    void asio_connection_handler::bingo(AMQP::Connection* key, connector_impl_* connector)
-    {
+    void asio_connection_handler::bingo(AMQP::Connection *key, connection_handler_target &&target) {
         assert(key);
-        assert(connector);
-            auto &ci = connections_[key];
-            assert(not ci.connection);
-            ci.connection = connector;
-            flush_data(ci);
+        auto &ci = connections_[key];
+        assert(ci.connection.empty());
+        ci.connection = std::move(target);
+        flush_data(ci);
     }
 
-    void asio_connection_handler::unbingo(AMQP::Connection* connection)
-    {
-        assert(connection);
-        connections_.erase(connection);
+    void asio_connection_handler::unbingo(AMQP::Connection *key) {
+        assert(key);
+        connections_.erase(key);
     }
 
-    void asio_connection_handler::onConnected(AMQP::Connection *connection)
-    {
+    void asio_connection_handler::onConnected(AMQP::Connection *key) {
         std::cerr << __func__ << std::endl;
-        auto& ci = connections_[connection];
-        assert(ci.connection);
-        ci.connection->notify_event(event_protocol_connected());
+        connections_.at(key).connection.onConnected();
     }
 
-    void asio_connection_handler::onClosed(AMQP::Connection *connection)
-    {
+    void asio_connection_handler::onClosed(AMQP::Connection *key) {
         std::cerr << __func__ << std::endl;
-        auto& ci = connections_[connection];
-        assert(ci.connection);
-        ci.connection->notify_event(event_protocol_closed());
+        connections_.at(key).connection.onClosed();
     }
 
-    void asio_connection_handler::onError(AMQP::Connection *connection, const char* message)
-    {
+    void asio_connection_handler::onError(AMQP::Connection *key, const char *message) {
         std::cerr << __func__ << " message: " << message << std::endl;
-        auto& ci = connections_[connection];
-        assert(ci.connection);
-        ci.connection->notify_event(event_protocol_error(message));
-
+        connections_.at(key).connection.onError(message);
     }
 
 

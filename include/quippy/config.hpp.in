@@ -4,6 +4,14 @@
 
 #pragma once
 #include <boost/asio.hpp>
+#include <boost/log/core.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/log/expressions.hpp>
+
+#define QUIPPY_ENTER_SYSTEM_NAMESPACE namespace boost { namespace system {
+#define QUIPPY_EXIT_SYSTEM_NAMESPACE }}
+
+#define QUIPPY_LOG(severity) BOOST_LOG_TRIVIAL(severity)
 
 namespace quippy {
 
@@ -12,6 +20,7 @@ namespace quippy {
         using boost::system::error_code;
         using boost::system::system_error;
         using boost::system::error_category;
+        using boost::system::system_category;
     }
 
     struct version_info

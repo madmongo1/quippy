@@ -13,20 +13,18 @@
 #include <quippy/detail/connection.hpp>
 #include <quippy/detail/result_or_error.hpp>
 #include <quippy/connector_impl.hpp>
+#include <quippy/notstd/apply.hpp>
 
 namespace quippy {
 
     struct connector_service : asio::detail::service_base<connector_service> {
         using implementation_class = connector_impl;
         using implementation_type = std::shared_ptr<connector_impl>;
+        using tcp = implementation_class::tcp;
 
         connector_service(asio::io_service &owner)
-            : asio::detail::service_base<connector_service>(owner)
-        , worker_executor_()
-        , worker_executor_work_(worker_executor_)
-        , connection_handler_(worker_executor_)
-        , worker_thread_()
-        {
+            : asio::detail::service_base<connector_service>(owner), worker_executor_(),
+              worker_executor_work_(worker_executor_), connection_handler_(worker_executor_), worker_thread_() {
             worker_thread_ = std::thread([this]() {
                 while (not this->worker_executor_.stopped()) {
                     this->worker_executor_.run_one();
@@ -41,39 +39,73 @@ namespace quippy {
         }
 
         void destroy(implementation_type &impl) {
-            detail::result_or_error<void> result;
-            auto handler = [&](auto const &ec) {
-                result.set_value_or_error(ec);
-            };
-
-            impl->notify_event(event_halt {handler});
-
-            result.wait();
+            halt(*impl);
             impl.reset();
         }
 
-        void connect_link(implementation_class &impl, asio::ip::tcp::resolver::iterator iter) {
+        void halt(implementation_class& impl)
+        {
             detail::result_or_error<void> result;
+            auto subs = subscribe_halted(impl, [&]() { result.set_value(); });
+            impl.notify_event(implementation_class::event_halt());
+            result.wait();
+        }
+
+        void connect_link(implementation_class &impl, asio::ip::tcp::resolver::iterator iter,
+        asio::error_code& ec)
+        {
+            detail::signalled<asio::error_code> sig_ec;
 
             impl.notify_event(implementation_class::event_connect_tcp{
                 iter,
                 [&](const asio::error_code &ec) {
-                    result.set_value_or_error(ec);
+                    sig_ec.set_value(ec);
                 }});
 
-            return result.get();
+            sig_ec.visit([&ec](auto& value){ ec = std::forward<decltype(value)>(value); });
         }
 
-        void connect(implementation_class &impl, AMQP::Login const& login, std::string const& vhost) {
-            detail::result_or_error<void> result;
+        template<class Handler>
+        auto make_async_handler(implementation_class &impl, Handler &&handler) {
+            auto &executor = get_io_service();
+
+            auto client_work = asio::io_service::work(executor);
+
+            auto shared_impl = impl.shared_from_this();
+
+            auto caller = [
+                handler = std::forward<Handler>(handler),
+                client_work,
+                shared_impl
+            ]
+                (auto &&...args) {
+                handler(args...);
+            };
+
+            return executor.wrap(caller);
+        }
+
+        template<class Handler>
+        void async_connect_link(implementation_class &impl, tcp::resolver::iterator iter, Handler &&handler) {
+
+
+            impl.notify_event(implementation_class::event_connect_tcp{
+                iter,
+                make_async_handler(impl,
+                                   std::forward<Handler>(handler))
+            });
+        }
+
+        void connect(implementation_class &impl, AMQP::Login const &login, std::string const &vhost, asio::error_code& ec) {
+            detail::signalled<asio::error_code> sig_ec;
 
             impl.notify_event(implementation_class::event_connect_protocol {
                 login,
                 vhost,
-                [&](auto &&ec) { result.set_value_or_error(ec); }
+                [&](auto &&ec) { sig_ec.set_value(ec); }
             });
 
-            return result.get();
+            sig_ec.visit([&ec](auto& value){ ec = std::forward<decltype(value)>(value); });
         }
 
         void add_connection() {

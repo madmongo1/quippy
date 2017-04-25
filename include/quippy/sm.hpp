@@ -12,6 +12,9 @@
 #include <boost/msm/front/state_machine_def.hpp>
 #include <boost/msm/front/functor_row.hpp>
 
+#include <boost/signals2.hpp>
+
+
 namespace quippy {
     namespace notstd {
         template<class T, class Tuple>
@@ -142,5 +145,45 @@ namespace quippy {
     namespace msmf = boost::msm::front;
     namespace mpl = boost::mpl;
 
+    namespace sig = boost::signals2;
+    using subscription = sig::scoped_connection;
+
+
+    // default back end for this project
+    template<class FrontEnd>
+    struct to_back_end {
+        using type = msm::back::state_machine<FrontEnd>;
+    };
+
+    template<class FrontEnd>
+    using to_back_end_t = typename to_back_end<FrontEnd>::type;
+
+    template<class Outer>
+    struct logging_state : msmf::state<>
+    {
+
+        using base_state = logging_state<Outer>;
+
+        template<class Event, class FSM>
+        void on_entry(Event const &event, FSM &fsm) {
+            QUIPPY_LOG(debug) << "FSM: " << typeid(FSM).name() << " ENTER STATE: " << typeid(Outer).name()
+                              << " WITH EVENT: " << typeid(Event).name();
+        }
+
+        template<class Event, class FSM>
+        void on_exit(Event const &event, FSM &fsm) {
+            QUIPPY_LOG(debug) << "FSM: " << typeid(FSM).name() << " EXIT STATE : " << typeid(Outer).name()
+                              << " WITH EVENT: " << typeid(Event).name();
+        }
+    };
+
+    template<class Outer>
+    struct non_logging_state : msmf::state<>
+    {
+        using base_state = non_logging_state<Outer>;
+
+    };
+
+    template<class State> using base_state = logging_state<State>;
 
 }

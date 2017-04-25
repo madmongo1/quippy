@@ -13,14 +13,19 @@ namespace quippy
     };
 
     struct event_halt : connector_impl_traits {
-        event_halt(completion_handler_function &&f)
-            : handler(std::move(f)) {}
-
-        void fire_completion_handler() const {
-            handler(asio::error_code());
+        operator asio::error_code() const {
+            return make_error_code(asio::error::operation_aborted);
         }
+    };
 
-        completion_handler_function handler;
+    struct expects_completion
+    {
+        template<class Handler>
+        expects_completion(Handler&& handler)
+            : completion_handler(std::forward<Handler>(handler))
+        {}
+
+        completion_handler_function completion_handler;
     };
 
 

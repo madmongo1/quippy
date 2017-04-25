@@ -140,4 +140,44 @@ namespace quippy { namespace detail {
         result_or_error<indicate_void> impl_;
     };
 
+    template<class Type>
+    struct signalled
+    {
+        mutable std::mutex m_;
+        mutable std::condition_variable cv_;
+        boost::optional<Type> opt_;
+
+
+        bool has_value(const std::unique_lock<std::mutex>& lock) const {
+            return opt_.is_initialized();
+        }
+
+        template<class Arg>
+        void set_value(Arg&& arg) {
+            auto lock = std::unique_lock<std::mutex>(m_);
+            assert(not has_value(lock));
+            opt_.reset(std::forward<Arg>(arg));
+            lock.unlock();
+            cv_.notify_all();
+        }
+
+        void wait() const {
+            auto lock = std::unique_lock<std::mutex>(m_);
+            cv_.wait(lock, [this, &lock] { return this->has_value(lock); });
+        }
+
+        void wait(std::unique_lock<std::mutex>& lock) const {
+            cv_.wait(lock, [this, &lock] { return this->has_value(lock); });
+        }
+
+        template<class Func>
+            auto visit(Func&& func)
+        {
+            auto lock = std::unique_lock<std::mutex>(m_);
+            wait(lock);
+            return func(opt_.get());
+        }
+
+    };
+
 }}
